@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useWallet } from '../src/hooks/useWallet'
+import { createElement } from 'react'
+import { WalletProvider, useWallet } from '../src/hooks/useWallet'
 import * as prism from '../src/lib/prism'
 
 function mockWindow(enableImpl) {
@@ -16,6 +17,10 @@ beforeEach(() => {
   delete global.window.cardano
 })
 
+function Wrapper({ children }) {
+  return createElement(WalletProvider, null, children)
+}
+
 describe('useWallet', () => {
   it('connects and exposes DID', async () => {
     const reward = 'addr_test1reward'
@@ -28,7 +33,7 @@ describe('useWallet', () => {
       .spyOn(prism, 'createOrLoadDID')
       .mockResolvedValue(`did:prism:${reward}`)
 
-    const { result } = renderHook(() => useWallet())
+    const { result } = renderHook(() => useWallet(), { wrapper: Wrapper })
     await act(async () => {
       await result.current.connect()
     })
@@ -42,7 +47,7 @@ describe('useWallet', () => {
 
   it('sets error when wallet missing', async () => {
     delete global.window.cardano
-    const { result } = renderHook(() => useWallet())
+    const { result } = renderHook(() => useWallet(), { wrapper: Wrapper })
     await act(async () => {
       await result.current.connect()
     })
@@ -56,7 +61,7 @@ describe('useWallet', () => {
       getNetworkId: vi.fn().mockResolvedValue(1),
     })
     mockWindow(enable)
-    const { result } = renderHook(() => useWallet())
+    const { result } = renderHook(() => useWallet(), { wrapper: Wrapper })
     await act(async () => {
       await result.current.connect()
     })
@@ -70,7 +75,7 @@ describe('useWallet', () => {
       getNetworkId: vi.fn().mockResolvedValue(0),
     })
     mockWindow(enable)
-    const { result } = renderHook(() => useWallet())
+    const { result } = renderHook(() => useWallet(), { wrapper: Wrapper })
     await act(async () => {
       await result.current.connect()
     })

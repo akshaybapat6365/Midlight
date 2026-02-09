@@ -1,4 +1,10 @@
-import { useState, useCallback } from 'react'
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from 'react'
 import { createOrLoadDID } from '../lib/prism'
 
 const EXPECTED_NETWORK_ID = parseInt(
@@ -6,7 +12,26 @@ const EXPECTED_NETWORK_ID = parseInt(
   10
 )
 
+const WalletContext = createContext(null)
+
+export function WalletProvider({ children }) {
+  const wallet = useWalletState()
+  return React.createElement(
+    WalletContext.Provider,
+    { value: wallet },
+    children
+  )
+}
+
 export function useWallet() {
+  const ctx = useContext(WalletContext)
+  if (!ctx) {
+    throw new Error('useWallet must be used within a WalletProvider')
+  }
+  return ctx
+}
+
+function useWalletState() {
   const [connected, setConnected] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -38,8 +63,11 @@ export function useWallet() {
       }
       setConnected(true)
     } catch (err) {
-      setError(err)
+      const e = err instanceof Error ? err : new Error(String(err))
+      setError(e)
       setConnected(false)
+      setApi(null)
+      setDid(null)
     } finally {
       setLoading(false)
     }
@@ -51,5 +79,8 @@ export function useWallet() {
     setDid(null)
   }, [])
 
-  return { connect, disconnect, connected, loading, error, did, api }
+  return useMemo(
+    () => ({ connect, disconnect, connected, loading, error, did, api }),
+    [connect, disconnect, connected, loading, error, did, api]
+  )
 }
