@@ -27,13 +27,11 @@ export const buildServer = async (params: { config: AppConfig; pickup: PickupSer
   app.get(
     '/api/health',
     {
-      config: {
-        rateLimit: { max: 60, timeWindow: '1 minute' },
-      },
+      preHandler: app.rateLimit({ max: 60, timeWindow: '1 minute' }),
     },
     async () => {
-    const status = await params.pickup.getStatus();
-    return { ok: true, network: params.config.network, ...status };
+      const status = await params.pickup.getStatus();
+      return { ok: true, network: params.config.network, ...status };
     },
   );
 
@@ -48,12 +46,10 @@ export const buildServer = async (params: { config: AppConfig; pickup: PickupSer
   app.post(
     '/api/contract/deploy',
     {
-      config: {
-        rateLimit: { max: 2, timeWindow: '1 minute' },
-      },
+      preHandler: app.rateLimit({ max: 2, timeWindow: '1 minute' }),
     },
     async () => {
-    return await params.pickup.deployContract();
+      return await params.pickup.deployContract();
     },
   );
 
@@ -123,38 +119,34 @@ export const buildServer = async (params: { config: AppConfig; pickup: PickupSer
   app.get(
     '/api/contract/state',
     {
-      config: {
-        rateLimit: { max: 120, timeWindow: '1 minute' },
-      },
+      preHandler: app.rateLimit({ max: 120, timeWindow: '1 minute' }),
     },
     async () => {
-    const ledgerState = await params.pickup.getLedgerStateJson();
-    return { ledgerState };
+      const ledgerState = await params.pickup.getLedgerStateJson();
+      return { ledgerState };
     },
   );
 
   app.post(
     '/api/clinic/register',
     {
-      config: {
-        rateLimit: { max: 10, timeWindow: '1 minute' },
-      },
+      preHandler: app.rateLimit({ max: 10, timeWindow: '1 minute' }),
     },
     async (req) => {
-    const body = z
-      .object({
-        rxId: rxIdSchema,
-        pharmacyIdHex: hex32,
-        patientId: z.string().uuid().optional(),
-        patientPublicKeyHex: hex32.optional(),
-      })
-      .refine((v) => v.patientId != null || v.patientPublicKeyHex != null, {
-        message: 'patientId or patientPublicKeyHex required',
-        path: ['patientId'],
-      })
-      .parse(req.body);
+      const body = z
+        .object({
+          rxId: rxIdSchema,
+          pharmacyIdHex: hex32,
+          patientId: z.string().uuid().optional(),
+          patientPublicKeyHex: hex32.optional(),
+        })
+        .refine((v) => v.patientId != null || v.patientPublicKeyHex != null, {
+          message: 'patientId or patientPublicKeyHex required',
+          path: ['patientId'],
+        })
+        .parse(req.body);
 
-    return await params.pickup.registerAuthorization(body);
+      return await params.pickup.registerAuthorization(body);
     },
   );
 
