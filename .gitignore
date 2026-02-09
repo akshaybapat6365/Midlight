@@ -3,3 +3,7 @@ node_modules
 
 # Vite build output
 .vite
+
+# Prover service state
+/services/prover/.data/
+/services/prover/midlight-private-state*/

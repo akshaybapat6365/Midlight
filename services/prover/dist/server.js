@@ -1,0 +1,122 @@
+import Fastify from 'fastify';
+import cors from '@fastify/cors';
+import { z } from 'zod';
+const hex32 = z
+    .string()
+    .regex(/^(0x)?[0-9a-fA-F]{64}$/, 'expected 32-byte hex string');
+const rxIdSchema = z.union([z.string().regex(/^[0-9]+$/), z.number().int().nonnegative()]);
+export const buildServer = async (params) => {
+    const app = Fastify({ logger: true });
+    await app.register(cors, { origin: true });
+    app.get('/api/health', async () => {
+        const status = await params.pickup.getStatus();
+        return { ok: true, network: params.config.network, ...status };
+    });
+    app.post('/api/clinic/init', async () => {
+        return await params.pickup.initClinic();
+    });
+    app.post('/api/patient', async () => {
+        return await params.pickup.createPatient();
+    });
+    app.post('/api/contract/deploy', async () => {
+        return await params.pickup.deployContract();
+    });
+    app.post('/api/jobs/deploy', async () => {
+        const job = params.jobs.create('deployContract', async (log) => {
+            log('Starting contract deployment (may take a long time on local proof-server)...');
+            const out = await params.pickup.deployContract();
+            log(`Deployed at ${out.contractAddress}`);
+            return out;
+        });
+        return { jobId: job.id };
+    });
+    app.post('/api/jobs/register', async (req) => {
+        const body = z
+            .object({
+            rxId: rxIdSchema,
+            pharmacyIdHex: hex32,
+            patientId: z.string().uuid().optional(),
+            patientPublicKeyHex: hex32.optional(),
+        })
+            .refine((v) => v.patientId != null || v.patientPublicKeyHex != null, {
+            message: 'patientId or patientPublicKeyHex required',
+            path: ['patientId'],
+        })
+            .parse(req.body);
+        const job = params.jobs.create('registerAuthorization', async (log) => {
+            log('Submitting clinic registerAuthorization tx...');
+            const out = await params.pickup.registerAuthorization(body);
+            log(`Submitted tx ${out.txId} at block ${out.blockHeight}`);
+            return out;
+        });
+        return { jobId: job.id };
+    });
+    app.post('/api/jobs/redeem', async (req) => {
+        const body = z
+            .object({
+            patientId: z.string().uuid(),
+            rxId: rxIdSchema,
+            pharmacyIdHex: hex32,
+        })
+            .parse(req.body);
+        const job = params.jobs.create('redeem', async (log) => {
+            log('Submitting patient redeem tx...');
+            const out = await params.pickup.redeem(body);
+            log(`Submitted tx ${out.txId} at block ${out.blockHeight}`);
+            return out;
+        });
+        return { jobId: job.id };
+    });
+    app.get('/api/jobs/:jobId', async (req) => {
+        const jobId = z.object({ jobId: z.string().uuid() }).parse(req.params).jobId;
+        const job = params.jobs.get(jobId);
+        if (!job)
+            return { job: null };
+        return { job };
+    });
+    app.post('/api/contract/join', async (req) => {
+        const body = z.object({ contractAddress: z.string().min(1) }).parse(req.body);
+        return await params.pickup.setContractAddress(body.contractAddress);
+    });
+    app.get('/api/contract/state', async () => {
+        const ledgerState = await params.pickup.getLedgerStateJson();
+        return { ledgerState };
+    });
+    app.post('/api/clinic/register', async (req) => {
+        const body = z
+            .object({
+            rxId: rxIdSchema,
+            pharmacyIdHex: hex32,
+            patientId: z.string().uuid().optional(),
+            patientPublicKeyHex: hex32.optional(),
+        })
+            .refine((v) => v.patientId != null || v.patientPublicKeyHex != null, {
+            message: 'patientId or patientPublicKeyHex required',
+            path: ['patientId'],
+        })
+            .parse(req.body);
+        return await params.pickup.registerAuthorization(body);
+    });
+    app.post('/api/patient/redeem', async (req) => {
+        const body = z
+            .object({
+            patientId: z.string().uuid(),
+            rxId: rxIdSchema,
+            pharmacyIdHex: hex32,
+        })
+            .parse(req.body);
+        return await params.pickup.redeem(body);
+    });
+    app.post('/api/pharmacy/check', async (req) => {
+        const body = z
+            .object({
+            patientId: z.string().uuid(),
+            rxId: rxIdSchema,
+            pharmacyIdHex: hex32,
+        })
+            .parse(req.body);
+        return await params.pickup.check(body);
+    });
+    return app;
+};
+//# sourceMappingURL=server.js.map
