@@ -1,6 +1,6 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import rateLimit from '@fastify/rate-limit';
+import rateLimit from 'fastify-rate-limit';
 import { z } from 'zod';
 
 import type { AppConfig } from './config.js';
