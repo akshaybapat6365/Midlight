@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import rateLimit from '@fastify/rate-limit';
 import { z } from 'zod';
 
 import type { AppConfig } from './config.js';
@@ -15,6 +16,13 @@ const rxIdSchema = z.union([z.string().regex(/^[0-9]+$/), z.number().int().nonne
 export const buildServer = async (params: { config: AppConfig; pickup: PickupService; jobs: JobStore }) => {
   const app = Fastify({ logger: true });
   await app.register(cors, { origin: true });
+  await app.register(rateLimit, {
+    global: true,
+    // This service is meant for local demo usage, but still protect endpoints that touch disk and/or
+    // submit transactions (satisfies CodeQL's missing-rate-limiting rule).
+    max: 600,
+    timeWindow: '1 minute',
+  });
 
   app.get('/api/health', async () => {
     const status = await params.pickup.getStatus();
