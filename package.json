@@ -1,11 +1,20 @@
 {
-  "name": "aura-feedback-app",
+  "name": "midlight",
   "version": "1.0.0",
   "description": "",
+  "private": true,
   "main": "index.js",
+  "workspaces": [
+    "midnight/*",
+    "services/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev:web": "vite",
+    "dev:prover": "npm -w services/prover run dev",
+    "dev:demo": "npm -w midnight/contract run build && concurrently -n prover,web \"npm -w services/prover run dev\" \"npm run dev:web\"",
+    "dev": "npm run dev:web",
+    "build:web": "vite build",
+    "build": "npm -w midnight/contract run build && npm -w services/prover run build && npm run build:web",
     "preview": "vite preview",
     "test": "vitest --run",
     "test:watch": "vitest",
@@ -16,21 +25,20 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "@atala/prism-wallet-sdk": "^5.2.0",
-    "@midnight-ntwrk/ledger": "^4.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "rxjs": "^7.8.1",
     "tailwind-merge": "^3.3.0",
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@midnight-ntwrk/ledger-v7": "7.0.0",
     "@tailwindcss/postcss": "^4.1.8",
     "@testing-library/react": "^14.3.0",
     "@vitejs/plugin-react": "^4.5.1",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^9.2.1",
     "eslint": "^8.57.1",
     "eslint-config-react-app": "^7.0.1",
     "jsdom": "^26.1.0",

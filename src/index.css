@@ -4,25 +4,25 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
+    --background: 48 33% 96%;
+    --foreground: 222 22% 12%;
+    --muted: 48 20% 92%;
+    --muted-foreground: 220 10% 38%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --border: 48 18% 86%;
+    --input: 48 18% 86%;
+    --primary: 156 52% 24%;
+    --primary-foreground: 48 33% 96%;
+    --secondary: 48 20% 92%;
+    --secondary-foreground: 222 22% 12%;
+    --accent: 31 86% 56%;
+    --accent-foreground: 222 22% 12%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --ring: 240 5% 64.9%;
+    --ring: 156 52% 24%;
     --radius: 0.5rem;
   }
   .dark {
@@ -45,5 +45,22 @@
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --ring: 240 3.7% 15.9%;
+  }
+
+  html {
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  code,
+  pre,
+  .font-mono {
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  body {
+    background:
+      radial-gradient(1200px 600px at 20% 0%, hsl(31 86% 56% / 0.12), transparent 60%),
+      radial-gradient(1000px 520px at 90% 10%, hsl(156 52% 24% / 0.10), transparent 55%),
+      hsl(var(--background));
   }
 }

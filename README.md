@@ -1,52 +1,80 @@
-# AI Credential Passport
+# Midlight
 
-This repository contains a small example application for managing credentials.
+Privacy-preserving prescription pickup demo using **Midnight Compact** contracts and **real ZK proofs** (via the Midnight proof server).
 
-The **Vite app** is located in the project root (`src/`, `vite.config.js`). It lets you connect a Cardano wallet, issue credentials and verify simple zero-knowledge proofs.
+Use-case (demo):
+1. A clinic registers an authorization for `(rxId, pharmacyId, patientPublicKey)` on-chain.
+2. A patient redeems without revealing identity: they prove they control the patient secret key corresponding to the public key committed into the authorization.
+3. A nullifier prevents double redemption.
+
+This is intentionally a hackable reference implementation, not production logic.
+
+## Repo Layout
+
+- `midnight/contract/` Compact smart contract + generated ZK assets (generated into `src/managed/**`).
+- `services/prover/` Node.js service that builds/signs/submits Midnight transactions and talks to the proof server.
+- `/src/` Vite + React UI that calls the prover service.
 
 ## Prerequisites
 
-- **Node.js** v20 or later
-- **npm** (comes with Node.js)
+- Node.js `>=22`
+- Docker + Docker Compose
+- `npm`
 
-## Running the Vite App
+## Quickstart (Local Standalone Network)
 
-Install dependencies and start the dev server from the repository root:
+1. Install deps:
 
 ```bash
 npm install
-npm run dev
 ```
 
-Create a production build with:
+2. Start a local Midnight node + indexer + proof server:
 
 ```bash
-npm run build
+docker compose -f services/prover/standalone.yml up -d
 ```
 
-Run the test suite:
+3. Start the demo (compiles the contract + starts prover + starts web):
 
 ```bash
-npm test
+npm run dev:demo
 ```
 
-### Configuration
+Open the UI at `http://127.0.0.1:3000`.
 
-The expected Cardano network ID can be configured using the
-`VITE_EXPECTED_NETWORK_ID` environment variable. If not provided it defaults
-to `0` (pre-production).
+Notes:
+- ZK proof generation can take a long time on laptops. The UI uses background jobs (polling `/api/jobs/:id`) so the browser doesn't time out.
+- If you see `Failed to connect to Proof Server: Transport error`, bump timeouts (see below).
 
-## Linting
+## What’s “Real” Here
 
-Use ESLint to verify code style:
+- Proof generation is done by the **Midnight proof server** (no deterministic/stub proofs).
+- Transactions are created, balanced, signed, and submitted using the Midnight wallet SDKs.
+
+## Local State
+
+The prover service persists demo state locally:
+
+- `services/prover/.data/state.json` contains the deployed contract address and demo secrets.
+- `services/prover/midlight-private-state*` is the LevelDB-backed private state store used by midnight-js.
+
+These paths are gitignored.
+
+## Configuration
+
+Prover service env vars:
+
+- `MIDLIGHT_HTTP_TIMEOUT_MS` (default: 1 hour)
+  - Used to increase the underlying Node fetch/undici timeouts for long-running `/prove` requests.
+  - Example:
 
 ```bash
-npm run lint
+MIDLIGHT_HTTP_TIMEOUT_MS=$((2*60*60*1000)) npm -w services/prover run dev
 ```
 
-## Functionality
+Docker proof-server tuning (edit `services/prover/standalone.yml`, then recreate just the proof-server):
 
-- **Wallet Connection** – Connects to the Lace wallet and exposes the resulting DID if a Cardano wallet is available.
-- **Adding Credentials** – Use the dashboard to issue a new credential. Credentials are stored in local storage and rendered in the dashboard.
-- **Proof Generation** – For each credential you can generate a placeholder proof and verify it. These functions simulate calls to a ZKP backend.
-
+```bash
+docker compose -f services/prover/standalone.yml up -d --force-recreate --no-deps proof-server
+```

@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Midlight demo contract: privacy-preserving prescription pickup authorization.
+//
+// Model:
+// - Clinic registers an authorization commitment (public) for a patient + Rx + pharmacy.
+// - Patient redeems by proving they know the patient secret key that corresponds to the
+//   registered patient public key (a commitment) and by creating a nullifier to prevent
+//   double redemption.
+//
+// This is a hackable demo contract, not production logic.
+
+pragma language_version >= 0.20;
+
+import CompactStandardLibrary;
+
+struct AuthorizationPreimage {
+  sep: Bytes<16>,
+  rx_id: Uint<64>,
+  pharmacy_id: Bytes<32>,
+  patient_pk: Bytes<32>,
+}
+
+struct NullifierPreimage {
+  sep: Bytes<16>,
+  rx_id: Uint<64>,
+  pharmacy_id: Bytes<32>,
+  patient_pk: Bytes<32>,
+}
+
+export ledger issuer_pk: Maybe<Bytes<32>>;
+export ledger authorizations: Set<Bytes<32>>;
+export ledger spent: Set<Bytes<32>>;
+
+constructor() {
+  issuer_pk = none<Bytes<32>>();
+}
+
+witness issuerSecretKey(): Bytes<32>;
+witness patientSecretKey(): Bytes<32>;
+
+export circuit registerAuthorization(rxId: Uint<64>, pharmacyId: Bytes<32>, patientPublicKey: Bytes<32>): [] {
+  const issuerPk = disclose(issuerPublicKey(issuerSecretKey()));
+  if (issuer_pk.is_some) {
+    assert(issuer_pk.value == issuerPk, "unauthorized issuer");
+  } else {
+    issuer_pk = disclose(some<Bytes<32>>(issuerPk));
+  }
+  const commitment = disclose(authorizationCommitment(rxId, pharmacyId, patientPublicKey));
+  authorizations.insert(commitment);
+}
+
+export circuit redeem(rxId: Uint<64>, pharmacyId: Bytes<32>): [] {
+  const patientPk = patientPublicKey(patientSecretKey());
+  const commitment = disclose(authorizationCommitment(rxId, pharmacyId, patientPk));
+  assert(authorizations.member(commitment), "authorization not found");
+
+  const nul = disclose(redemptionNullifier(patientPk, rxId, pharmacyId));
+  assert(!spent.member(nul), "already redeemed");
+  spent.insert(nul);
+}
+
+export circuit issuerPublicKey(sk: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "rx:issuer:v1"), sk]);
+}
+
+export circuit patientPublicKey(sk: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "rx:patient:v1"), sk]);
+}
+
+export circuit authorizationCommitment(rxId: Uint<64>, pharmacyId: Bytes<32>, patientPk: Bytes<32>): Bytes<32> {
+  return persistentHash<AuthorizationPreimage>(
+    AuthorizationPreimage {
+      sep: pad(16, "rx:auth:v1"),
+      rx_id: rxId,
+      pharmacy_id: pharmacyId,
+      patient_pk: patientPk,
+    }
+  );
+}
+
+export circuit redemptionNullifier(patientPk: Bytes<32>, rxId: Uint<64>, pharmacyId: Bytes<32>): Bytes<32> {
+  return persistentHash<NullifierPreimage>(
+    NullifierPreimage {
+      sep: pad(16, "rx:nul:v1"),
+      rx_id: rxId,
+      pharmacy_id: pharmacyId,
+      patient_pk: patientPk,
+    }
+  );
+}

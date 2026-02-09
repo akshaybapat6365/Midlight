@@ -12,9 +12,8 @@ describe('utils', () => {
   })
 
   it('truncate shortens long strings with a middle ellipsis', () => {
-    const out = truncate('did:prism:abcdefghijklmnopqrstuvwxyz', 20)
+    const out = truncate('abcdefghijklmnopqrstuvwxyz0123456789', 20)
     expect(out.length).toBe(20)
     expect(out).toContain('...')
   })
 })
-

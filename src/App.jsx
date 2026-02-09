@@ -1,19 +1,15 @@
 import React from 'react'
-import { Header } from './components/Header'
-import { FeedbackProvider } from './hooks/useFeedback'
-import { FeedbackSpace } from './components/FeedbackSpace'
-import { WalletProvider } from './hooks/useWallet'
+import { AppHeader } from './components/AppHeader'
+import { PickupDemo } from './components/PickupDemo'
 
 function App() {
+  const [health, setHealth] = React.useState(null)
+
   return (
-    <WalletProvider>
-      <FeedbackProvider>
-        <div className="min-h-screen bg-background text-foreground">
-          <Header />
-          <FeedbackSpace />
-        </div>
-      </FeedbackProvider>
-    </WalletProvider>
+    <div className="min-h-screen bg-background text-foreground">
+      <AppHeader health={health} />
+      <PickupDemo onHealth={setHealth} />
+    </div>
   )
 }
 
