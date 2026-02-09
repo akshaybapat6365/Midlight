@@ -24,10 +24,18 @@ export const buildServer = async (params: { config: AppConfig; pickup: PickupSer
     timeWindow: '1 minute',
   });
 
-  app.get('/api/health', async () => {
+  app.get(
+    '/api/health',
+    {
+      config: {
+        rateLimit: { max: 60, timeWindow: '1 minute' },
+      },
+    },
+    async () => {
     const status = await params.pickup.getStatus();
     return { ok: true, network: params.config.network, ...status };
-  });
+    },
+  );
 
   app.post('/api/clinic/init', async () => {
     return await params.pickup.initClinic();
@@ -37,9 +45,17 @@ export const buildServer = async (params: { config: AppConfig; pickup: PickupSer
     return await params.pickup.createPatient();
   });
 
-  app.post('/api/contract/deploy', async () => {
+  app.post(
+    '/api/contract/deploy',
+    {
+      config: {
+        rateLimit: { max: 2, timeWindow: '1 minute' },
+      },
+    },
+    async () => {
     return await params.pickup.deployContract();
-  });
+    },
+  );
 
   app.post('/api/jobs/deploy', async () => {
     const job = params.jobs.create('deployContract', async (log) => {
@@ -104,12 +120,27 @@ export const buildServer = async (params: { config: AppConfig; pickup: PickupSer
     return await params.pickup.setContractAddress(body.contractAddress);
   });
 
-  app.get('/api/contract/state', async () => {
+  app.get(
+    '/api/contract/state',
+    {
+      config: {
+        rateLimit: { max: 120, timeWindow: '1 minute' },
+      },
+    },
+    async () => {
     const ledgerState = await params.pickup.getLedgerStateJson();
     return { ledgerState };
-  });
+    },
+  );
 
-  app.post('/api/clinic/register', async (req) => {
+  app.post(
+    '/api/clinic/register',
+    {
+      config: {
+        rateLimit: { max: 10, timeWindow: '1 minute' },
+      },
+    },
+    async (req) => {
     const body = z
       .object({
         rxId: rxIdSchema,
@@ -124,7 +155,8 @@ export const buildServer = async (params: { config: AppConfig; pickup: PickupSer
       .parse(req.body);
 
     return await params.pickup.registerAuthorization(body);
-  });
+    },
+  );
 
   app.post('/api/patient/redeem', async (req) => {
     const body = z
