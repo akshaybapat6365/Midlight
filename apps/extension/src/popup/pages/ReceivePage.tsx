@@ -8,12 +8,14 @@ export const ReceivePage = () => {
   return (
     <Panel>
       <h2 className="dw-heading">Receive</h2>
-      <p className="dw-sub">Share this address to receive assets into your extension wallet.</p>
+      <p className="dw-sub">Share this address to receive ADA and Cardano assets.</p>
 
       {address ? (
         <>
           <div className="dw-panel">
             <div className="dw-kv">
+              <div className="dw-kv-label">Network</div>
+              <div className="dw-kv-value">{status.network}</div>
               <div className="dw-kv-label">Cardano Address</div>
               <div className="dw-kv-value dw-code">{address}</div>
             </div>
@@ -25,7 +27,7 @@ export const ReceivePage = () => {
           </div>
         </>
       ) : (
-        <div className="dw-error">Initialize and unlock vault to view receive address.</div>
+        <div className="dw-error">Initialize and unlock vault to view a receive address.</div>
       )}
     </Panel>
   );

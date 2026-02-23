@@ -15,8 +15,10 @@ const jsonHeaders = {
   'content-type': 'application/json',
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET,POST,OPTIONS',
-  'access-control-allow-headers': 'content-type,authorization',
+  'access-control-allow-headers': 'content-type,authorization,project_id',
 };
+
+const toHexHash = (input) => crypto.createHash('sha256').update(input).digest('hex');
 
 const dappServer = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') {
@@ -38,14 +40,22 @@ const dappServer = http.createServer((req, res) => {
   res.end(JSON.stringify({ error: 'Not found' }));
 });
 
+const parseBody = async (req) => {
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  return Buffer.concat(chunks);
+};
+
 const backendServer = http.createServer(async (req, res) => {
+  const url = new URL(req.url ?? '/', 'http://127.0.0.1');
+
   if (req.method === 'OPTIONS') {
     res.writeHead(204, jsonHeaders);
     res.end();
     return;
   }
 
-  if (req.method === 'GET' && req.url === '/api/health') {
+  if (req.method === 'GET' && url.pathname === '/api/health') {
     res.writeHead(200, jsonHeaders);
     res.end(
       JSON.stringify({
@@ -57,11 +67,9 @@ const backendServer = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === 'POST' && req.url === '/api/v1/cardano/submit-tx') {
-    const chunks = [];
-    for await (const chunk of req) chunks.push(chunk);
-    const raw = Buffer.concat(chunks).toString('utf8');
-
+  if (req.method === 'POST' && url.pathname === '/api/v1/cardano/submit-tx') {
+    const bodyBuffer = await parseBody(req);
+    const raw = bodyBuffer.toString('utf8');
     let parsed;
     try {
       parsed = JSON.parse(raw);
@@ -78,9 +86,85 @@ const backendServer = http.createServer(async (req, res) => {
       return;
     }
 
-    const txHash = crypto.createHash('sha256').update(txCborHex).digest('hex');
+    const txHash = toHexHash(txCborHex);
     res.writeHead(200, jsonHeaders);
     res.end(JSON.stringify({ txHash }));
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname.startsWith('/addresses/')) {
+    const parts = url.pathname.split('/').filter(Boolean);
+    const address = decodeURIComponent(parts[1] ?? '');
+
+    if (parts[2] === 'utxos') {
+      res.writeHead(200, jsonHeaders);
+      res.end(
+        JSON.stringify([
+          {
+            tx_hash: 'ab'.repeat(32),
+            tx_index: 0,
+            output_index: 0,
+            address,
+            amount: [{ unit: 'lovelace', quantity: '900000000' }],
+            block: 'mock-block',
+            data_hash: null,
+            inline_datum: null,
+            reference_script_hash: null,
+          },
+        ]),
+      );
+      return;
+    }
+
+    if (parts[2] === 'transactions') {
+      res.writeHead(200, jsonHeaders);
+      res.end(JSON.stringify([]));
+      return;
+    }
+
+    res.writeHead(200, jsonHeaders);
+    res.end(
+      JSON.stringify({
+        address,
+        amount: [
+          { unit: 'lovelace', quantity: '123456789' },
+          { unit: `${'cd'.repeat(28)}746f6b656e`, quantity: '42' },
+        ],
+        tx_count: 3,
+      }),
+    );
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/epochs/latest/parameters') {
+    res.writeHead(200, jsonHeaders);
+    res.end(
+      JSON.stringify({
+        min_fee_a: 44,
+        min_fee_b: 155381,
+        max_tx_size: 16384,
+        max_val_size: '5000',
+        key_deposit: '2000000',
+        pool_deposit: '500000000',
+        coins_per_utxo_byte: '4310',
+      }),
+    );
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/tx/submit') {
+    const body = await parseBody(req);
+    if (!body.length) {
+      res.writeHead(400, jsonHeaders);
+      res.end(JSON.stringify({ message: 'Missing transaction body' }));
+      return;
+    }
+    const txHash = toHexHash(body);
+    res.writeHead(200, {
+      'content-type': 'text/plain; charset=utf-8',
+      'access-control-allow-origin': '*',
+    });
+    res.end(txHash);
     return;
   }
 
@@ -94,7 +178,7 @@ dappServer.listen(dappPort, '127.0.0.1', () => {
 });
 backendServer.listen(backendPort, '127.0.0.1', () => {
   // eslint-disable-next-line no-console
-  console.log(`[e2e-extension] backend mock listening on http://127.0.0.1:${backendPort}`);
+  console.log(`[e2e-extension] backend + blockfrost mock listening on http://127.0.0.1:${backendPort}`);
 });
 
 const closeAll = () => {

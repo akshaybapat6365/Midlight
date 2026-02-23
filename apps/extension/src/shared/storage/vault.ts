@@ -125,7 +125,12 @@ export const createVault = async (password: string, mnemonic?: string): Promise<
   return { record, mnemonic: phrase };
 };
 
-export const unlockVault = async (password: string): Promise<VaultSession> => {
+export const unlockVault = async (
+  password: string,
+  options?: {
+    autoLockMinutes?: number;
+  },
+): Promise<VaultSession> => {
   const record = await getVaultRecord();
   if (!record) throw new Error('Vault not initialized');
   const mnemonic = await decryptString(record.encryptedMnemonic, password);
@@ -134,7 +139,8 @@ export const unlockVault = async (password: string): Promise<VaultSession> => {
     await setVaultRecord(normalized);
   }
 
-  const autoLockAt = Date.now() + RUNTIME_CONFIG.autoLockMinutes * 60_000;
+  const autoLockMinutes = options?.autoLockMinutes ?? RUNTIME_CONFIG.autoLockMinutes;
+  const autoLockAt = Date.now() + autoLockMinutes * 60_000;
   return {
     mnemonic,
     cardanoAddress: normalized.cardano.paymentAddress,
@@ -165,4 +171,8 @@ export const readVaultHints = async (): Promise<{ cardanoAddress: string; midnig
     cardanoAddress: record.cardano.paymentAddress,
     midnightAddress: record.midnightAddressHint,
   };
+};
+
+export const resetVault = async (): Promise<void> => {
+  await chrome.storage.local.remove(EXTENSION_STORAGE_KEYS.vault);
 };

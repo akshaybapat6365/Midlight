@@ -14,7 +14,7 @@ export default defineManifest({
     type: 'module',
   },
   options_page: 'src/fullpage/index.html',
-  permissions: ['storage', 'activeTab', 'scripting', 'tabs'],
+  permissions: ['storage', 'activeTab', 'scripting', 'tabs', 'alarms'],
   host_permissions: ['<all_urls>'],
   content_scripts: [
     {

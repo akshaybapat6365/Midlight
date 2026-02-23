@@ -1,6 +1,8 @@
 export const EXTENSION_STORAGE_KEYS = {
   vault: 'darkwallet.vault.v1',
   approvals: 'darkwallet.approvals.v1',
+  settings: 'darkwallet.settings.v1',
+  balanceCache: 'darkwallet.balance-cache.v1',
 } as const;
 
 export const RUNTIME_CONFIG = {
@@ -12,4 +14,6 @@ export const RUNTIME_CONFIG = {
     | 'preprod'
     | 'mainnet',
   autoLockMinutes: Number(import.meta.env.VITE_EXTENSION_AUTO_LOCK_MINUTES ?? '10'),
+  blockfrostProjectId: import.meta.env.VITE_EXTENSION_BLOCKFROST_PROJECT_ID ?? '',
+  blockfrostBaseUrl: import.meta.env.VITE_EXTENSION_BLOCKFROST_BASE_URL ?? '',
 };

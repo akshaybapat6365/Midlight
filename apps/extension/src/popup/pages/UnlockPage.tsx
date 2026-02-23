@@ -1,119 +1,109 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { Panel } from '@ext/components/Panel';
 import { sendRuntimeMessage } from '@ext/shared/services/runtime-client';
 import { useVault } from '@ext/shared/hooks/useVault';
 
 export const UnlockPage = () => {
+  const navigate = useNavigate();
   const { status, loading, error, refresh } = useVault();
   const [password, setPassword] = useState('');
-  const [mnemonic, setMnemonic] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const canCreate = useMemo(() => !status?.exists, [status?.exists]);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
-  const run = async (action: 'create' | 'unlock' | 'lock') => {
+  useEffect(() => {
+    if (status?.unlocked) {
+      navigate('/balance', { replace: true });
+    }
+  }, [navigate, status?.unlocked]);
+
+  const unlock = async () => {
     try {
       setBusy(true);
       setLocalError(null);
-      setResult(null);
-
-      if (action === 'create') {
-        const data = await sendRuntimeMessage<{ mnemonic: string; cardanoAddress: string }>({
-          kind: 'VAULT_CREATE',
-          password,
-          mnemonic: mnemonic.trim() || undefined,
-        });
-        setMnemonic(data.mnemonic);
-        setResult(`Vault created. Address: ${data.cardanoAddress}`);
-      }
-
-      if (action === 'unlock') {
-        const data = await sendRuntimeMessage<{ cardanoAddress: string }>({ kind: 'VAULT_UNLOCK', password });
-        setResult(`Unlocked: ${data.cardanoAddress}`);
-      }
-
-      if (action === 'lock') {
-        await sendRuntimeMessage({ kind: 'VAULT_LOCK' });
-        setResult('Wallet locked');
-      }
-
+      await sendRuntimeMessage({ kind: 'VAULT_UNLOCK', password });
       await refresh();
+      navigate('/balance', { replace: true });
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : 'Wallet action failed');
+      setLocalError(err instanceof Error ? err.message : 'Unlock failed');
     } finally {
       setBusy(false);
     }
   };
 
+  if (loading) {
+    return (
+      <Panel>
+        <span className="dw-badge warn">Checking vault status...</span>
+      </Panel>
+    );
+  }
+
+  if (!status?.exists) {
+    return (
+      <Panel>
+        <h2 className="dw-heading">No Vault Found</h2>
+        <p className="dw-sub">Create a new wallet or import an existing recovery phrase first.</p>
+        <div className="dw-inline">
+          <Link to="/welcome" className="dw-button-link">
+            Continue
+          </Link>
+        </div>
+      </Panel>
+    );
+  }
+
   return (
     <Panel>
-      <h2 className="dw-heading">Vault Access</h2>
-      <p className="dw-sub">Create/import your encrypted vault, then unlock for signing.</p>
+      <h2 className="dw-heading">Unlock Vault</h2>
+      <p className="dw-sub">Enter your wallet password to enable signing.</p>
 
-      {loading ? <div className="dw-badge warn">Checking vault status...</div> : null}
-      {status ? (
-        <div className="dw-inline">
-          <span className={`dw-badge ${status.unlocked ? 'success' : 'warn'}`}>
-            {status.unlocked ? 'Unlocked' : status.exists ? 'Locked' : 'Not initialized'}
-          </span>
-        </div>
-      ) : null}
+      {error ? <div className="dw-error">{error}</div> : null}
+      {localError ? <div className="dw-error">{localError}</div> : null}
 
-      {error ? <div className="dw-error" style={{ marginTop: 10 }}>{error}</div> : null}
-      {localError ? <div className="dw-error" style={{ marginTop: 10 }}>{localError}</div> : null}
-      {result ? <div className="dw-badge success" style={{ marginTop: 10 }}>{result}</div> : null}
-
-      <div className="dw-grid" style={{ marginTop: 12 }}>
-        <label className="dw-field">
-          <span className="dw-label">Password</span>
+      <label className="dw-field" style={{ marginTop: 10 }}>
+        <span className="dw-label">Password</span>
+        <div className="dw-input-row">
           <input
+            ref={inputRef}
             className="dw-input"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
+            aria-label="Enter wallet password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             placeholder="Enter wallet password"
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !busy) {
+                void unlock();
+              }
+            }}
           />
-        </label>
-
-        {canCreate ? (
-          <label className="dw-field">
-            <span className="dw-label">Mnemonic (optional import)</span>
-            <textarea
-              className="dw-textarea"
-              value={mnemonic}
-              onChange={(event) => setMnemonic(event.target.value)}
-              placeholder="Leave empty to generate 24 words"
-            />
-          </label>
-        ) : null}
-      </div>
+          <button
+            type="button"
+            className="dw-mini-button"
+            onClick={() => setShowPassword((current) => !current)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+          >
+            {showPassword ? 'Hide' : 'Show'}
+          </button>
+        </div>
+      </label>
 
       <div className="dw-inline" style={{ marginTop: 12 }}>
-        {canCreate ? (
-          <button className="dw-button" disabled={busy || password.length < 8} onClick={() => void run('create')}>
-            Create or Import Vault
-          </button>
-        ) : (
-          <button className="dw-button" disabled={busy || password.length < 8} onClick={() => void run('unlock')}>
-            Unlock Wallet
-          </button>
-        )}
-        <button className="dw-button secondary" disabled={busy} onClick={() => void run('lock')}>
-          Lock
+        <button className="dw-button" disabled={busy || password.length < 8} onClick={() => void unlock()}>
+          {busy ? 'Unlocking...' : 'Unlock Wallet'}
         </button>
+        <Link to="/import" className="dw-link">
+          Forgot password? Import seed phrase
+        </Link>
       </div>
-
-      {canCreate && mnemonic ? (
-        <div className="dw-panel" style={{ marginTop: 12 }}>
-          <div className="dw-kv">
-            <div className="dw-kv-label">Recovery phrase</div>
-            <div className="dw-kv-value dw-code">{mnemonic}</div>
-          </div>
-        </div>
-      ) : null}
     </Panel>
   );
 };
